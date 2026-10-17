@@ -1,6 +1,15 @@
+import os
 import time
 
-from prometheus_client import CONTENT_TYPE_LATEST, Counter, Histogram, generate_latest
+from prometheus_client import (
+    CONTENT_TYPE_LATEST,
+    REGISTRY,
+    CollectorRegistry,
+    Counter,
+    Histogram,
+    generate_latest,
+    multiprocess,
+)
 from starlette.responses import Response
 from starlette.types import ASGIApp, Message, Receive, Scope, Send
 
@@ -52,5 +61,23 @@ def route_template(scope: Scope) -> str:
     return path
 
 
+def multiprocess_dir() -> str | None:
+    """Set PROMETHEUS_MULTIPROC_DIR before the process starts to aggregate across workers."""
+    return os.environ.get("PROMETHEUS_MULTIPROC_DIR") or None
+
+
 def metrics_endpoint() -> Response:
-    return Response(generate_latest(), media_type=CONTENT_TYPE_LATEST)
+    if multiprocess_dir():
+        # Each worker writes its samples to mmap files in the directory; a fresh registry
+        # per scrape merges all of them, so the answer no longer depends on which worker replied.
+        registry = CollectorRegistry()
+        multiprocess.MultiProcessCollector(registry)  # type: ignore[no-untyped-call]
+        return Response(generate_latest(registry), media_type=CONTENT_TYPE_LATEST)
+    return Response(generate_latest(REGISTRY), media_type=CONTENT_TYPE_LATEST)
+
+
+def mark_worker_dead() -> None:
+    """Drop this worker's live-gauge files on shutdown. Counter and histogram files stay,
+    so totals do not go backwards when a worker restarts."""
+    if multiprocess_dir():
+        multiprocess.mark_process_dead(os.getpid())  # type: ignore[no-untyped-call]

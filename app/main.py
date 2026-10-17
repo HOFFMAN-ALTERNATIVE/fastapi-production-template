@@ -8,7 +8,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.api.routes import auth, health, items
 from app.core.config import get_settings
 from app.core.logging import configure_logging
-from app.core.metrics import PrometheusMiddleware, metrics_endpoint
+from app.core.metrics import PrometheusMiddleware, mark_worker_dead, metrics_endpoint
 from app.core.middleware import request_context_middleware
 from app.db.session import engine
 from app.services.redis import get_redis
@@ -21,6 +21,7 @@ async def lifespan(_: FastAPI) -> AsyncIterator[None]:
     yield
     await get_redis().aclose()
     await engine.dispose()
+    mark_worker_dead()
     log.info("shutdown")
 
 

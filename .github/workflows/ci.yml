@@ -67,6 +67,13 @@ jobs:
           curl -fsS -X POST localhost:8000/api/v1/items -H "Authorization: Bearer $TOKEN" \
             -H 'content-type: application/json' -d '{"title":"hello"}'
           curl -fsS localhost:8000/metrics | grep -q http_requests_total
+          # 2 uvicorn workers: every scrape must see the requests served by both
+          for _ in $(seq 20); do curl -fsS -o /dev/null localhost:8000/health/live; done
+          for _ in $(seq 5); do
+            n=$(curl -fsS localhost:8000/metrics | grep '^http_requests_total{' \
+              | grep 'route="/health/live"' | grep 'status="200"' | awk '{s+=$NF} END {print s+0}')
+            echo "health/live total: $n"; [ "${n%.*}" -ge 20 ]
+          done
           docker compose exec -T api id -u | grep -q 10001
       - if: failure()
         run: docker compose logs

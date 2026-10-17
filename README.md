@@ -22,7 +22,7 @@ The trade-off: it is opinionated (Postgres, Redis, JWT, Alembic). Swapping any o
 | Auth | JWT access + refresh tokens (typed, with `jti`), Argon2id hashing, user-enumeration-resistant login |
 | Abuse protection | Redis fixed-window login rate limiting with `Retry-After`; staging and production refuse to start with a placeholder or short JWT secret |
 | Authorization | per-owner resource isolation (others' items return 404, not 403) |
-| Observability | structlog JSON logs with request-id correlation, Prometheus metrics via pure-ASGI middleware with route-template labels |
+| Observability | structlog JSON logs with request-id correlation, Prometheus metrics via pure-ASGI middleware with route-template labels, aggregated across uvicorn workers (`PROMETHEUS_MULTIPROC_DIR`) |
 | Health | `/health/live` (process) and `/health/ready` (DB + Redis, 503 when degraded) |
 | Container | multi-stage build, non-root UID 10001, healthcheck with timeout, graceful shutdown (20 s), migrations on start |
 | Quality | ruff (lint + format, incl. bandit rules), mypy strict, pytest + coverage gate ≥ 85% |
