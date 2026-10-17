@@ -111,6 +111,14 @@ tests/        API, auth, isolation, platform, rate-limit tests
 All settings come from environment / `.env` (see [`.env.example`](.env.example)), validated by `pydantic-settings`.
 `/docs` is disabled when `ENVIRONMENT=production`.
 
+## Container image
+
+Multi-arch (amd64/arm64) images are published to GitHub Container Registry on every release:
+
+```bash
+docker pull ghcr.io/hoffman-alternative/fastapi-production-template:latest
+```
+
 ## License
 
 MIT — see [LICENSE](LICENSE).
