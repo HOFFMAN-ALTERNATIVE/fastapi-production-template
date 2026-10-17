@@ -8,13 +8,9 @@
 ![coverage](https://img.shields.io/badge/coverage-%E2%89%A585%25-brightgreen)
 ![License: MIT](https://img.shields.io/badge/license-MIT-green)
 
-**An opinionated, production-ready FastAPI service skeleton** — the boring-but-critical parts done right, so you start with business logic.
+A FastAPI service skeleton with the unglamorous parts already done, so a new service starts at business logic: migrations that roll back, auth that resists brute force, queryable JSON logs, metrics with bounded label cardinality, health checks orchestrators understand, and a non-root container. Type-checked with `mypy --strict`, tested against real Postgres and Redis in CI with an 85 % coverage gate, and the migration chain is checked up, down and up again on every commit.
 
-## Why
-
-Most FastAPI templates stop at "hello world + SQLAlchemy". Real services need migrations that roll back, auth that resists
-brute force, logs you can query, metrics with bounded cardinality, health checks orchestrators understand, and a container
-that doesn't run as root. This template has all of it, type-checked with `mypy --strict` and tested against real Postgres in CI.
+The trade-off: it is opinionated (Postgres, Redis, JWT, Alembic). Swapping any of those is possible but means touching several layers, and for a tiny internal tool it is more structure than you need.
 
 ## Features
 
@@ -24,11 +20,11 @@ that doesn't run as root. This template has all of it, type-checked with `mypy -
 | Database | SQLAlchemy 2 async + asyncpg, typed `Mapped[]` models, naming conventions, `TimestampMixin` |
 | Migrations | Alembic (async env), CI checks `upgrade → downgrade → upgrade` and `alembic check` for drift |
 | Auth | JWT access + refresh tokens (typed, with `jti`), Argon2id hashing, user-enumeration-resistant login |
-| Abuse protection | Redis fixed-window login rate limiting with `Retry-After` |
+| Abuse protection | Redis fixed-window login rate limiting with `Retry-After`; staging and production refuse to start with a placeholder or short JWT secret |
 | Authorization | per-owner resource isolation (others' items return 404, not 403) |
 | Observability | structlog JSON logs with request-id correlation, Prometheus metrics via pure-ASGI middleware with route-template labels |
 | Health | `/health/live` (process) and `/health/ready` (DB + Redis, 503 when degraded) |
-| Container | multi-stage build, non-root UID 10001, healthcheck, migrations on start |
+| Container | multi-stage build, non-root UID 10001, healthcheck with timeout, graceful shutdown (20 s), migrations on start |
 | Quality | ruff (lint + format, incl. bandit rules), mypy strict, pytest + coverage gate ≥ 85% |
 
 ## Quick start
@@ -111,6 +107,15 @@ tests/        API, auth, isolation, platform, rate-limit tests
 All settings come from environment / `.env` (see [`.env.example`](.env.example)), validated by `pydantic-settings`.
 `/docs` is disabled when `ENVIRONMENT=production`.
 
+## Limits
+
+- Migrations run on container start. With several replicas starting at once, run `alembic upgrade head` as a separate one-off job instead.
+- Fixed-window rate limiting allows up to twice the limit across a window boundary. Good enough for login abuse, not for billing.
+- Refresh tokens are not stored server-side, so they cannot be revoked individually before expiry; keep their TTL short or add a deny-list.
+- HS256 with one shared secret. Use asymmetric keys if other services must verify tokens.
+
+Security notes: [SECURITY.md](SECURITY.md).
+
 ## Container image
 
 Multi-arch (amd64/arm64) images are published to GitHub Container Registry on every release:
@@ -121,4 +126,4 @@ docker pull ghcr.io/hoffman-alternative/fastapi-production-template:latest
 
 ## License
 
-MIT — see [LICENSE](LICENSE).
+MIT, see [LICENSE](LICENSE).

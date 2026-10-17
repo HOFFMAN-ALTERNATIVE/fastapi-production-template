@@ -1,7 +1,7 @@
 from functools import lru_cache
 from typing import Literal
 
-from pydantic import Field, SecretStr
+from pydantic import Field, SecretStr, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -29,6 +29,17 @@ class Settings(BaseSettings):
     login_rate_window_seconds: int = 60
 
     cors_origins: list[str] = []
+
+    @model_validator(mode="after")
+    def _require_real_secret_outside_dev(self) -> "Settings":
+        """Refuse to start staging or production with the placeholder or a short JWT secret."""
+        if self.environment in ("staging", "production"):
+            secret = self.jwt_secret.get_secret_value()
+            if len(secret) < 32 or "change" in secret.lower():
+                raise ValueError(
+                    "JWT_SECRET must be at least 32 random characters in staging and production"
+                )
+        return self
 
 
 @lru_cache

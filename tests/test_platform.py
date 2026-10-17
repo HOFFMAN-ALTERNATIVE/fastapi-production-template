@@ -1,4 +1,8 @@
+import pytest
 from httpx import AsyncClient
+from pydantic import SecretStr, ValidationError
+
+from app.core.config import Settings
 
 
 async def test_liveness(client: AsyncClient) -> None:
@@ -24,3 +28,16 @@ async def test_metrics_use_route_templates(client: AsyncClient) -> None:
     assert "http_requests_total" in body
     assert 'route="/api/v1/items/{item_id}"' in body
     assert "00000000-0000" not in body
+
+
+@pytest.mark.parametrize(
+    "secret", ["change-me", "CHANGE_ME_TO_A_LONG_RANDOM_STRING", "short-but-not-placeholder"]
+)
+def test_production_rejects_weak_jwt_secret(secret: str) -> None:
+    with pytest.raises(ValidationError, match="JWT_SECRET"):
+        Settings(environment="production", jwt_secret=SecretStr(secret))
+
+
+def test_production_accepts_long_random_secret() -> None:
+    s = Settings(environment="production", jwt_secret=SecretStr("k" * 40))
+    assert s.environment == "production"
