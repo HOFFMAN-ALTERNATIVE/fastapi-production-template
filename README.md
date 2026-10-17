@@ -107,6 +107,15 @@ tests/        API, auth, isolation, platform, rate-limit tests
 All settings come from environment / `.env` (see [`.env.example`](.env.example)), validated by `pydantic-settings`.
 `/docs` is disabled when `ENVIRONMENT=production`.
 
+## Design decisions
+
+- [ADR 0001](docs/adr/0001-stateless-jwt-access-and-refresh.md): HS256 JWTs, 15-minute access
+  and 7-day refresh, so auth needs no lookup. Refresh tokens cannot be revoked yet.
+- [ADR 0002](docs/adr/0002-alembic-on-start-with-roundtrip-check.md): migrations run on
+  container start, and CI checks upgrade, downgrade, upgrade and drift.
+- [ADR 0003](docs/adr/0003-asgi-metrics-with-route-templates.md): a pure ASGI metrics
+  middleware labelled by route template, so cardinality stays bounded.
+
 ## Limits
 
 - Migrations run on container start. With several replicas starting at once, run `alembic upgrade head` as a separate one-off job instead.
